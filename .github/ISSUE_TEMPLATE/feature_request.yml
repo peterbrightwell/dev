@@ -8,9 +8,9 @@ body:
     id: requirement_link
     attributes:
       label: Requirement Issue Link
-      description: Please link to the related requirement issue in Repo A (e.g., `org/repo-a#123`)
-      placeholder: "org/repo-a#123"
-      value: ""
+      description: Link to the related requirement issue in Repo A (e.g., `org/repo-a#123`)
+      placeholder: "https://github.com/org/repo-a/issues/123"
+    validations:
       required: true
 
   - type: textarea
@@ -19,3 +19,5 @@ body:
       label: Feature Description
       description: Describe the feature and how it fulfills the requirement.
       placeholder: "Describe the implementation plan, scope, and any dependencies."
+    validations:
+      required: true
