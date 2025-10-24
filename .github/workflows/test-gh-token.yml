@@ -1,0 +1,22 @@
+name: Test GH_TOKEN
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-gh-token:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check GH_TOKEN availability
+        run: |
+          if [ -z "${{ secrets.GH_TOKEN }}" ]; then
+            echo "❌ GH_TOKEN is not available in this workflow context."
+            exit 1
+          else
+            echo "✅ GH_TOKEN is available."
+          fi
+
+      - name: Test GitHub API with GH_TOKEN
+        run: |
+          echo "Calling GitHub API with GH_TOKEN..."
+          curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" https://api.github.com/user
