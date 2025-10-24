@@ -12,12 +12,16 @@ jobs:
         uses: cssnr/parse-issue-form-action@v1
         with:
           body: ${{ github.event.issue.body }}
+      
+      - name: Debug requirement_link
+        run: |
+          echo "Parsed requirement_link: ${{ steps.parse.outputs.requirement_link }}"
 
       - name: Extract owner, repo, and issue number
         id: extract
         run: |
           LINK="${{ steps.parse.outputs.requirement_link }}"
-          echo "Raw requirement_link: $LINK"
+          echo "Raw LINK: $LINK"
           if [[ "$LINK" =~ ^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+#[0-9]+$ ]]; then
             OWNER_REPO=$(echo "$LINK" | cut -d'#' -f1)
             ISSUE_NUM=$(echo "$LINK" | grep -o '#[0-9]*' | cut -c2-)
@@ -26,7 +30,7 @@ jobs:
           else
             echo "Invalid requirement_link format: $LINK"
           fi
-
+          
       - name: Debug token presence
         run: |
           if [ -z "${{ secrets.GH_TOKEN }}" ]; then
