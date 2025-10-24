@@ -1,0 +1,41 @@
+name: Link Requirement Issue
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  link-requirement:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Parse issue form
+        id: parse
+        uses: cssnr/parse-issue-form-action@v1
+        with:
+          body: ${{ github.event.issue.body }}
+
+      - name: Extract owner, repo, and issue number
+        id: extract
+        run: |
+          echo "Parsing requirement_link: ${{ steps.parse.outputs.requirement_link }}"
+          LINK="${{ steps.parse.outputs.requirement_link }}"
+          OWNER_REPO=$(echo "$LINK" | cut -d'#' -f1)
+          ISSUE_NUM=$(echo "$LINK" | grep -o '#[0-9]*' | cut -c2-)
+          echo "owner_repo=$OWNER_REPO" >> $GITHUB_OUTPUT
+          echo "issue_num=$ISSUE_NUM" >> $GITHUB_OUTPUT
+
+      - name: Comment on parent issue
+        if: steps.extract.outputs.issue_num != ''
+        run: |
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ steps.extract.outputs.owner_repo }}/issues/${{ steps.extract.outputs.issue_num }}/comments \
+            -d "{\"body\": \"Linked feature request: ${{ github.repository }}#${{ github.event.issue.number }}\"}"
+
+      - name: Add labels to child issue
+        run: |
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/labels \
+            -d '{"labels": ["linked-to-requirement", "feature"]}'
