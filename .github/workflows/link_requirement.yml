@@ -16,12 +16,25 @@ jobs:
       - name: Extract owner, repo, and issue number
         id: extract
         run: |
-          echo "Parsing requirement_link: ${{ steps.parse.outputs.requirement_link }}"
           LINK="${{ steps.parse.outputs.requirement_link }}"
-          OWNER_REPO=$(echo "$LINK" | cut -d'#' -f1)
-          ISSUE_NUM=$(echo "$LINK" | grep -o '#[0-9]*' | cut -c2-)
-          echo "owner_repo=$OWNER_REPO" >> $GITHUB_OUTPUT
-          echo "issue_num=$ISSUE_NUM" >> $GITHUB_OUTPUT
+          echo "Raw requirement_link: $LINK"
+          if [[ "$LINK" =~ ^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+#[0-9]+$ ]]; then
+            OWNER_REPO=$(echo "$LINK" | cut -d'#' -f1)
+            ISSUE_NUM=$(echo "$LINK" | grep -o '#[0-9]*' | cut -c2-)
+            echo "owner_repo=$OWNER_REPO" >> $GITHUB_OUTPUT
+            echo "issue_num=$ISSUE_NUM" >> $GITHUB_OUTPUT
+          else
+            echo "Invalid requirement_link format: $LINK"
+          fi
+
+      - name: Debug token presence
+        run: |
+          if [ -z "${{ secrets.GH_TOKEN }}" ]; then
+            echo "GH_TOKEN is empty or not set!"
+            exit 1
+          else
+            echo "GH_TOKEN is set."
+          fi
 
       - name: Comment on parent issue
         if: steps.extract.outputs.issue_num != ''
