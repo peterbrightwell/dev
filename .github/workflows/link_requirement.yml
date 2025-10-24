@@ -18,10 +18,6 @@ jobs:
         with:
           body: ${{ github.event.issue.body }}
       
-      - name: Debug parsed outputs
-        run: |
-          echo "Parsed requirement_link: ${{ steps.parse.outputs.requirement_link }}"
-      
       - name: Debug requirement_link
         run: |
           echo "Parsed requirement_link: ${{ steps.parse.outputs.requirement_link }}"
@@ -65,3 +61,55 @@ jobs:
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/labels \
             -d '{"labels": ["linked-to-requirement", "feature"]}'
+
+      
+      - name: Link as sub-issue using gh CLI
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          PARENT_REPO: ${{ steps.extract.outputs.owner_repo }}
+          PARENT_NUMBER: ${{ steps.extract.outputs.issue_num }}
+          CHILD_REPO: ${{ github.repository }}
+          CHILD_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          echo "Fetching node IDs..."
+
+          PARENT_NODE_ID=$(gh api graphql -H "GraphQL-Features: projects_next_graphql" -f query='
+            query($repo: String!, $owner: String!, $number: Int!) {
+              repository(name: $repo, owner: $owner) {
+                issue(number: $number) {
+                  id
+                }
+              }
+            }' -f owner="$(echo $PARENT_REPO | cut -d'/' -f1)" \
+               -f repo="$(echo $PARENT_REPO | cut -d'/' -f2)" \
+               -f number="$PARENT_NUMBER" \
+               --jq '.data.repository.issue.id')
+
+          CHILD_NODE_ID=$(gh api graphql -H "GraphQL-Features: projects_next_graphql" -f query='
+            query($repo: String!, $owner: String!, $number: Int!) {
+              repository(name: $repo, owner: $owner) {
+                issue(number: $number) {
+                  id
+                }
+              }
+            }' -f owner="$(echo $CHILD_REPO | cut -d'/' -f1)" \
+               -f repo="$(echo $CHILD_REPO | cut -d'/' -f2)" \
+               -f number="$CHILD_NUMBER" \
+               --jq '.data.repository.issue.id')
+
+          echo "Parent Node ID: $PARENT_NODE_ID"
+          echo "Child Node ID: $CHILD_NODE_ID"
+
+          echo "Linking child to parent..."
+          gh api graphql -H "GraphQL-Features: projects_next_graphql" -f query='
+            mutation($parent: ID!, $child: ID!) {
+              addSubIssue(input: {issueId: $parent, subIssueId: $child}) {
+                issue {
+                  title
+                }
+                subIssue {
+                  title
+                }
+              }
+            }' -f parent="$PARENT_NODE_ID" -f child="$CHILD_NODE_ID"
+
