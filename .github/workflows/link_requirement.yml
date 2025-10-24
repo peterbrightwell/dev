@@ -82,7 +82,7 @@ jobs:
               }
             }' -f owner="$(echo $PARENT_REPO | cut -d'/' -f1)" \
                -f repo="$(echo $PARENT_REPO | cut -d'/' -f2)" \
-               -f number="$PARENT_NUMBER" \
+               -f number=$PARENT_NUMBER \
                --jq '.data.repository.issue.id')
 
           CHILD_NODE_ID=$(gh api graphql -H "GraphQL-Features: sub_issues" -f query='
@@ -94,7 +94,7 @@ jobs:
               }
             }' -f owner="$(echo $CHILD_REPO | cut -d'/' -f1)" \
                -f repo="$(echo $CHILD_REPO | cut -d'/' -f2)" \
-               -f number="$CHILD_NUMBER" \
+               -f number=$CHILD_NUMBER \
                --jq '.data.repository.issue.id')
 
           echo "Parent Node ID: $PARENT_NODE_ID"
@@ -111,5 +111,5 @@ jobs:
                   title
                 }
               }
-            }' -f parent="$PARENT_NODE_ID" -f child="$CHILD_NODE_ID"
+            }' -f parent=$PARENT_NODE_ID -f child=$CHILD_NODE_ID
 
