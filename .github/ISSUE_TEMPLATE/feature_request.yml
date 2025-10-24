@@ -7,9 +7,9 @@ body:
   - type: input
     id: requirement_link
     attributes:
-      label: Requirement Issue Link
-      description: Link to the related requirement issue in Repo A (e.g., `org/repo-a#123`)
-      placeholder: "https://github.com/org/repo-a/issues/123"
+      label: Requirement Link
+      description: Link to the related requirement issue in Repo A (e.g., `peterbrightwell/reqs#99999`)
+      placeholder: "peterbrightwell/reqs#99999"
     validations:
       required: true
 
