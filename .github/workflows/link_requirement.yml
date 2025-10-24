@@ -7,11 +7,20 @@ jobs:
   link-requirement:
     runs-on: ubuntu-latest
     steps:
+
+      - name: Print raw issue body
+        run: |
+          echo "${{ github.event.issue.body }}"
+    
       - name: Parse issue form
         id: parse
         uses: cssnr/parse-issue-form-action@v1
         with:
           body: ${{ github.event.issue.body }}
+      
+      - name: Debug parsed outputs
+        run: |
+          echo "Parsed requirement_link: ${{ steps.parse.outputs.requirement_link }}"
       
       - name: Debug requirement_link
         run: |
