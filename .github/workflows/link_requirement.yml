@@ -41,7 +41,7 @@ jobs:
           
       - name: Debug token presence
         run: |
-          if [ -z "${{ secrets.GH_TOKEN }}" ]; then
+          if [ -z "${{ secrets.GITHUB_TOKEN }}" ]; then
             echo "GH_TOKEN is empty or not set!"
             exit 1
           else
@@ -49,17 +49,19 @@ jobs:
           fi
 
       - name: Comment on parent issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         if: steps.extract.outputs.issue_num != ''
         run: |
           curl -X POST \
-            -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+            -H "Authorization: token $GH_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ steps.extract.outputs.owner_repo }}/issues/${{ steps.extract.outputs.issue_num }}/comments \
             -d "{\"body\": \"Linked feature: ${{ github.repository }}#${{ github.event.issue.number }}\"}"
 
       - name: Set 'Type' field to 'Feature' in GitHub Project
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN}}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN}}
         run: |
           curl -X POST -H "Authorization: bearer $GH_TOKEN" -H "Content-Type: application/json" \
           -d '{
@@ -68,7 +70,7 @@ jobs:
           
       - name: Link as sub-issue using gh CLI
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PARENT_REPO: ${{ steps.extract.outputs.owner_repo }}
           PARENT_NUMBER: ${{ steps.extract.outputs.issue_num }}
           CHILD_REPO: ${{ github.repository }}
