@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Contributors to the Media eXchange Layer project.
+# SPDX-License-Identifier: Apache-2.0
+
 name: Link Requirement Issue
 on:
   issues:
@@ -52,17 +55,17 @@ jobs:
             -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ steps.extract.outputs.owner_repo }}/issues/${{ steps.extract.outputs.issue_num }}/comments \
-            -d "{\"body\": \"Linked feature request: ${{ github.repository }}#${{ github.event.issue.number }}\"}"
+            -d "{\"body\": \"Linked feature: ${{ github.repository }}#${{ github.event.issue.number }}\"}"
 
-      - name: Add labels to child issue
+      - name: Set 'Type' field to 'Feature' in GitHub Project
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN}}
         run: |
-          curl -X POST \
-            -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/labels \
-            -d '{"labels": ["linked-to-requirement", "feature"]}'
-
-      
+          curl -X POST -H "Authorization: bearer $GH_TOKEN" -H "Content-Type: application/json" \
+          -d '{
+            "query": "mutation { updateProjectV2ItemFieldValue(input: {projectId: \"PROJECT_ID\", itemId: \"ITEM_ID\", fieldId: \"TYPE_FIELD_ID\", value: { singleSelectOptionId: \"FEATURE_OPTION_ID\" }}) { projectV2Item { id } } }"
+          }' https://api.github.com/graphql
+          
       - name: Link as sub-issue using gh CLI
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
