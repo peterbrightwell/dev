@@ -24,8 +24,8 @@ jobs:
 
     env:
       # Default parent repo for number-only links; override via repo Actions Variable if needed
-      # DEFAULT_REQUIREMENTS_REPO: ${{ vars.DEFAULT_REQUIREMENTS_REPO || 'dmf-mxl/mxl-requirements' }}
-      DEFAULT_REQUIREMENTS_REPO: ${{ vars.DEFAULT_REQUIREMENTS_REPO || 'peterbrightwell/reqs' }}
+      DEFAULT_REQUIREMENTS_REPO: ${{ vars.DEFAULT_REQUIREMENTS_REPO || 'dmf-mxl/mxl-requirements' }}
+      # DEFAULT_REQUIREMENTS_REPO: ${{ vars.DEFAULT_REQUIREMENTS_REPO || 'peterbrightwell/reqs' }}
 
     steps:
       - name: Print raw issue body (debug)
