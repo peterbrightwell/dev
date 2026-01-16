@@ -6,7 +6,7 @@ name: Link Requirement Issue
 
 on:
   issues:
-    # 'labeled' covers the edge case where the 'feature' label is applied by automation after creation
+    # 'labeled' covers the edge case where 'feature' label is applied after creation
     types: [opened, labeled]
 
 permissions:
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # Default parent repo for number-only links; override via repo variable if needed
+      # Default parent repo for number-only links; override via repo Actions Variable if needed
       # DEFAULT_REQUIREMENTS_REPO: ${{ vars.DEFAULT_REQUIREMENTS_REPO || 'dmf-mxl/mxl-requirements' }}
       DEFAULT_REQUIREMENTS_REPO: ${{ vars.DEFAULT_REQUIREMENTS_REPO || 'peterbrightwell/reqs' }}
 
@@ -89,20 +89,11 @@ jobs:
             echo "Could not parse owner/repo and issue number; skipping linking steps."
           fi
 
-      # Create a cross-repo token from your GitHub App
-      - name: Create cross-repo token
-        if: steps.extract.outputs.issue_num != ''
-        id: app-token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ vars.CROSS_REPO_ISSUE_ACCESS_APP_ID }}
-          private-key: ${{ secrets.CROSS_REPO_ISSUE_ACCESS_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}  # token can access repos in this owner installation
-
-      - name: Export GH_TOKEN for subsequent steps
+      # Use a PAT so we can act across personal + org repos
+      - name: Export GH_TOKEN from PAT (cross-owner)
         if: steps.extract.outputs.issue_num != ''
         run: |
-          echo "GH_TOKEN=${{ steps.app-token.outputs.token }}" >> "$GITHUB_ENV"
+          echo "GH_TOKEN=${{ secrets.CROSS_OWNER_LINKING_PAT }}" >> "$GITHUB_ENV"
 
       - name: Debug token presence
         if: steps.extract.outputs.issue_num != ''
