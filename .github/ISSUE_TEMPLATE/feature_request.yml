@@ -1,15 +1,16 @@
-name: Feature Request
+name: Feature
 description: A new feature that implements a requirement from Repo A
 title: "[Feature] <short description>"
-labels: [feature]
+labels:
+  - feature
 
 body:
   - type: input
     id: requirement_link
     attributes:
       label: Requirement Link
-      description: Link to the related requirement issue in Repo A (e.g., `peterbrightwell/reqs#99999`)
-      placeholder: "peterbrightwell/reqs#99999"
+      description: Link to the related requirement issue in Repo A (e.g., `peterbrightwell/reqs#99999`, `99999`, or full URL)
+      placeholder: "99999"
     validations:
       required: true
 
