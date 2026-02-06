@@ -1,0 +1,26 @@
+name: Feature
+description: Feature derived from an MXL Requirement
+type: Feature
+title: "[Feature] <short description>"
+labels: [] # not required when gating by Issue Type
+
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Provide a clear, concise description of the feature.
+      placeholder: "Describe the feature"
+    validations:
+      required: true
+
+  - type: input
+    id: requirement_link
+    attributes:
+      label: Requirement Link
+      description: >
+        Enter the related requirement reference. Accepted: `123`, `#123`,
+        `dmf-mxl/mxl-requirements#123`, or a full URL.
+      placeholder: "123"
+    validations:
+      required: true

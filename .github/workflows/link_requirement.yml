@@ -1,57 +1,48 @@
-
-# SPDX-FileCopyrightText: 2025 Contributors to the Media eXchange Layer project.
 # SPDX-License-Identifier: Apache-2.0
 
 name: Link Requirement Issue
 
 on:
   issues:
-    # 'labeled' covers the edge case where 'feature' label is applied after creation
-    types: [opened, labeled]
+    types: [opened, edited]   # 'edited' lets us update body if the requirement changes
 
 permissions:
   contents: read
   issues: write
-  repository-projects: write
 
 jobs:
   link-requirement:
-    # Only run when the issue is labeled 'feature'
-    if: >
-      contains(github.event.issue.labels.*.name, 'feature') ||
-      (github.event.action == 'labeled' && github.event.label.name == 'feature')
+    # Only run when Issue Type == Feature.
+    # If your payload uses an object (type.name), switch to:
+    # if: github.event.issue.type == 'Feature' || github.event.issue.type.name == 'Feature'
+    if: github.event.issue.type == 'Feature'
     runs-on: ubuntu-latest
 
     env:
-      # Default parent repo for number-only links; override via repo Actions Variable if needed
-      DEFAULT_REQUIREMENTS_REPO: ${{ vars.DEFAULT_REQUIREMENTS_REPO || 'dmf-mxl/mxl-requirements' }}
-      # DEFAULT_REQUIREMENTS_REPO: ${{ vars.DEFAULT_REQUIREMENTS_REPO || 'peterbrightwell/reqs' }}
+      # Default repo for number-only input (can be changed later)
+      DEFAULT_REQUIREMENTS_REPO: dmf-mxl/mxl-requirements
 
     steps:
-      - name: Print raw issue body (debug)
-        run: |
-          echo "${{ github.event.issue.body }}"
-
       - name: Parse issue form
         id: parse
         uses: cssnr/parse-issue-form-action@v1
         with:
           body: ${{ github.event.issue.body }}
 
-      # Guard: Skip if the field is absent or empty
-      - name: Guard - check requirement_link presence
+      # Guard: ensure requirement_link exists
+      - name: Guard – ensure requirement_link exists
         id: guard
         run: |
           LINK="${{ steps.parse.outputs.requirement_link }}"
           if [ -z "$LINK" ]; then
-            echo "No 'requirement_link' field/value found; skipping workflow."
             echo "has=false" >> $GITHUB_OUTPUT
+            echo "Requirement link missing — skipping."
           else
-            echo "Detected requirement_link raw value: '$LINK'"
             echo "has=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Normalize and extract owner/repo and issue number
+      # Normalize a SINGLE requirement link and build a clickable URL
+      - name: Normalize requirement link
         if: steps.guard.outputs.has == 'true'
         id: extract
         env:
@@ -59,79 +50,107 @@ jobs:
           DEFAULT_REPO: ${{ env.DEFAULT_REQUIREMENTS_REPO }}
         run: |
           set -euo pipefail
-          LINK="$(echo "$RAW_LINK" | tr -d '\r' | xargs)"  # trim whitespace/CR
+          LINK="$(echo "$RAW_LINK" | tr -d '\r' | xargs)"
 
           OWNER_REPO=""
           ISSUE_NUM=""
+          FULL_URL=""
 
-          # Accept:
-          # 1) owner/repo#123
-          # 2) 123 or #123  (mapped to DEFAULT_REPO)
-          # 3) https://github.com/owner/repo/issues/123
+          # owner/repo#123
           if [[ "$LINK" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+$ ]]; then
             OWNER_REPO="${LINK%%#*}"
             ISSUE_NUM="${LINK##*#}"
+
+          # number-only: 123 or #123
           elif [[ "$LINK" =~ ^\#?[0-9]+$ ]]; then
             OWNER_REPO="$DEFAULT_REPO"
             ISSUE_NUM="${LINK#\#}"
+
+          # full URL: https://github.com/<owner>/<repo>/issues/<num>
           elif [[ "$LINK" =~ ^https?://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/issues/([0-9]+) ]]; then
             OWNER_REPO="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
             ISSUE_NUM="${BASH_REMATCH[3]}"
+
           else
-            echo "Invalid requirement_link format: '$LINK'"
+            echo "Invalid requirement link format: $LINK"
           fi
 
           if [[ -n "$OWNER_REPO" && -n "$ISSUE_NUM" ]]; then
-            echo "Normalized owner_repo=$OWNER_REPO, issue_num=$ISSUE_NUM"
-            echo "owner_repo=$OWNER_REPO" >> "$GITHUB_OUTPUT"
-            echo "issue_num=$ISSUE_NUM" >> "$GITHUB_OUTPUT"
-          else
-            echo "Could not parse owner/repo and issue number; skipping linking steps."
+            FULL_URL="https://github.com/${OWNER_REPO}/issues/${ISSUE_NUM}"
+            echo "owner_repo=$OWNER_REPO"     >> $GITHUB_OUTPUT
+            echo "issue_num=$ISSUE_NUM"      >> $GITHUB_OUTPUT
+            echo "requirement_url=$FULL_URL" >> $GITHUB_OUTPUT
+            echo "Normalized requirement URL: $FULL_URL"
           fi
 
-      # Use a PAT so we can act across personal + org repos
-      - name: Export GH_TOKEN from PAT (cross-owner)
+      # Personal account: use PAT (must have access to both repos involved)
+      - name: Export GH_TOKEN from PAT
         if: steps.extract.outputs.issue_num != ''
-        run: |
-          echo "GH_TOKEN=${{ secrets.CROSS_OWNER_LINKING_PAT }}" >> "$GITHUB_ENV"
+        run: echo "GH_TOKEN=${{ secrets.CROSS_OWNER_LINKING_PAT }}" >> "$GITHUB_ENV"
 
-      - name: Debug token presence
+      - name: Verify GH_TOKEN
         if: steps.extract.outputs.issue_num != ''
         run: |
-          if [ -z "${GH_TOKEN}" ]; then
-            echo "GH_TOKEN is empty or not set!"
+          if [ -z "$GH_TOKEN" ]; then
+            echo "ERROR: GH_TOKEN is empty"
             exit 1
-          else
-            echo "GH_TOKEN is set."
           fi
 
-      - name: Link as sub-issue using gh CLI
+      # Parent–child link (parent = Requirement, child = Feature)
+      - name: Link as sub-issue (parent = Requirement, child = Feature)
         if: steps.extract.outputs.issue_num != ''
         env:
-          PARENT_REPO: ${{ steps.extract.outputs.owner_repo }}
+          PARENT_REPO:   ${{ steps.extract.outputs.owner_repo }}
           PARENT_NUMBER: ${{ steps.extract.outputs.issue_num }}
-          CHILD_REPO: ${{ github.repository }}
-          CHILD_NUMBER: ${{ github.event.issue.number }}
+          CHILD_REPO:    ${{ github.repository }}
+          CHILD_NUMBER:  ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
-          echo "Fetching node IDs..."
 
+          echo "Fetching node IDs..."
           PARENT_NODE_ID=$(gh issue view https://github.com/$PARENT_REPO/issues/$PARENT_NUMBER --json id --jq .id)
           CHILD_NODE_ID=$(gh issue view https://github.com/$CHILD_REPO/issues/$CHILD_NUMBER --json id --jq .id)
 
-          echo "Parent Node ID: $PARENT_NODE_ID"
-          echo "Child Node ID: $CHILD_NODE_ID"
-
-          echo "Linking child to parent..."
+          echo "Creating sub-issue link..."
           gh api graphql \
             -H "GraphQL-Features: sub_issues" \
-            -f query='
-            mutation {
-              addSubIssue(input: {
-                issueId: "'$PARENT_NODE_ID'",
-                subIssueId: "'$CHILD_NODE_ID'"
-              }) {
-                issue { title }
-                subIssue { title }
+            -f query="
+              mutation {
+                addSubIssue(input: {
+                  issueId: \"${PARENT_NODE_ID}\",
+                  subIssueId: \"${CHILD_NODE_ID}\"
+                }) {
+                  issue { title }
+                  subIssue { title }
+                }
               }
-            }'
+            "
+
+      # Append ONLY the clickable URL to the END of the issue BODY (no label text).
+      # We wrap it with invisible markers so we can update/replace it on edits.
+      - name: Append normalized URL to issue body (idempotent)
+        if: steps.extract.outputs.issue_num != ''
+        env:
+          CHILD_REPO:  ${{ github.repository }}
+          CHILD_NUMBER:${{ github.event.issue.number }}
+          REQUIRE_URL: ${{ steps.extract.outputs.requirement_url }}
+        run: |
+          set -euo pipefail
+          echo "Fetching current issue body..."
+          # Pull the body into a file to preserve newlines
+          gh api "repos/$CHILD_REPO/issues/$CHILD_NUMBER" --jq .body > body_current.txt || echo -n > body_current.txt
+
+          # Remove any previously inserted block (between our invisible markers)
+          sed -e '/<!--mxl:requirement:start-->/,/<!--mxl:requirement:end-->/d' body_current.txt > body_clean.txt
+
+          # Ensure trailing newline then append the URL wrapped in invisible markers
+          printf "\n\n<!--mxl:requirement:start-->\n%s\n<!--mxl:requirement:end-->\n" "$REQUIRE_URL" >> body_clean.txt
+
+          NEW_BODY="$(cat body_clean.txt)"
+
+          echo "Patching issue body..."
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            "repos/$CHILD_REPO/issues/$CHILD_NUMBER" \
+            -f body="$NEW_BODY"
